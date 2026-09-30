@@ -99,6 +99,57 @@
             text-transform: none;
         }
 
+        /* Label yang duduk di garis border input */
+        .field { position: relative; }
+        .field-label {
+            position: absolute;
+            top: -7px;
+            left: 14px;
+            height: 14px;
+            padding: 0 6px;
+            line-height: 14px;
+            /* atas = warna kartu, bawah = warna isi input, dipotong pas di garis */
+            background: linear-gradient(to bottom, var(--surface) 50%, var(--bg) 50%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            z-index: 2;
+            pointer-events: none; /* klik tembus ke input, kalender flatpickr tetap muncul */
+        }
+
+        /* Font input disamain: Plus Jakarta Sans, weight normal */
+        .field .porto-input {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 500;
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+        .field #pnlPreview {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Toggle Long / Short (form & modal edit) */
+        .side-toggle { display: flex; gap: 4px; padding: 4px; }
+        .field .side-toggle { padding: 4px; height: 100%; }
+        .side-btn {
+            flex: 1;
+            border: 0;
+            border-radius: 9px;
+            padding: 9px 0;
+            font-weight: 600;
+            color: var(--text-dim);
+            background: transparent;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease, transform .1s ease;
+        }
+        .side-btn:active { transform: scale(0.97); }
+        .side-btn.on-long { background: rgba(52,211,153,0.14); color: var(--profit); }
+        .side-btn.on-short { background: rgba(251,113,133,0.14); color: var(--loss); }
+
         .row-card {
             transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
         }
@@ -130,6 +181,14 @@
 
         @keyframes expandIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
         .expand-in { animation: expandIn .2s ease-out both; }
+
+        /* Animasi collapse (kebalikan dari expand-in), dipicu manual lewat JS
+           di toggleExpand() karena elemen panel bakal dihapus/di-render ulang
+           setelah animasinya kelar. */
+        .collapsing {
+            overflow: hidden;
+            transition: max-height .22s ease, opacity .18s ease, transform .18s ease;
+        }
 
         .swal2-popup.swal2-toast {
             font-size: 0.9rem !important;
@@ -251,6 +310,287 @@
         .font-card {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
         }
+
+        /* ═══════════════ ANIMASI TAHAN LAMA (isian) ═══════════════ */
+        .hold-target {
+            position: relative;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .hold-target::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(217,164,65,0.26), rgba(217,164,65,0.08));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform .25s ease;          /* balik ke 0 saat dilepas */
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .hold-target.holding::after {
+            transform: scaleX(1);
+            transition: transform var(--hold-ms, 500ms) linear;   /* isi selama ditahan */
+        }
+        .hold-target.holding { transform: scale(0.985); }
+
+        /* ═══════════════ POPUP PREMIUM ═══════════════
+           Modal tetap pakai class "hidden", tapi "hidden" diganti dari
+           display:none -> transparan + tak bisa diklik, supaya bisa fade in/out. */
+        #actionModal, #editModal, #deleteModal, #resultCardModal, #tradeShareModal, #dailyShareModal {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity .28s ease, visibility 0s linear 0s;
+            background:
+                radial-gradient(ellipse 70% 50% at 50% 100%, rgba(217,164,65,0.10), transparent 70%),
+                rgba(4,5,8,0.74);
+            -webkit-backdrop-filter: blur(14px) saturate(125%);
+            backdrop-filter: blur(14px) saturate(125%);
+        }
+        #actionModal.hidden, #editModal.hidden, #deleteModal.hidden, #resultCardModal.hidden, #tradeShareModal.hidden, #dailyShareModal.hidden {
+            display: flex !important;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity .22s ease, visibility 0s linear .22s;
+        }
+
+        /* kartu di dalam popup: masuk dengan scale + naik sedikit (pegas) */
+        #actionModal > *, #editModal > *, #deleteModal > *, #resultCardModal > *, #tradeShareModal > *, #dailyShareModal > * {
+            animation: none !important;
+            transition: transform .42s cubic-bezier(0.34, 1.45, 0.64, 1), opacity .26s ease;
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        #actionModal.hidden > *, #editModal.hidden > *, #deleteModal.hidden > *, #resultCardModal.hidden > *, #tradeShareModal.hidden > *, #dailyShareModal.hidden > * {
+            transform: translateY(18px) scale(0.94);
+            opacity: 0;
+        }
+        #actionModal.hidden > * { transform: translateY(46px) scale(0.98); }
+
+        /* tampilan kaca + garis emas tipis di atas */
+        #actionModal .porto-card, #editModal .porto-card, #deleteModal .porto-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(26,30,43,0.97), rgba(12,15,23,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow:
+                0 40px 90px rgba(0,0,0,0.7),
+                0 0 0 1px rgba(217,164,65,0.05),
+                inset 0 1px 0 rgba(255,255,255,0.07);
+        }
+        #actionModal .porto-card::before, #editModal .porto-card::before, #deleteModal .porto-card::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+            opacity: .7;
+            pointer-events: none;
+        }
+        #deleteModal .porto-card { border-color: rgba(251,113,133,0.28); }
+        #deleteModal .porto-card::before { background: linear-gradient(90deg, transparent, #fb7185 50%, transparent); }
+
+        /* pegangan (handle) di action sheet */
+        #actionModal .porto-card { padding-top: 22px; }
+        #actionModal .porto-card::after {
+            content: '';
+            position: absolute;
+            top: 8px; left: 50%;
+            width: 38px; height: 4px;
+            margin-left: -19px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.18);
+        }
+
+        /* tombol di action sheet: ikon dalam kotak kecil */
+        #actionModal button { border-radius: 16px; transition: background .18s ease, transform .12s ease; }
+        #actionModal button:active { transform: scale(0.98); }
+        #actionModal button > span:first-child {
+            width: 36px; height: 36px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 11px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.06);
+            font-size: 16px;
+        }
+        #actionDeleteBtn > span:first-child { background: rgba(251,113,133,0.12) !important; border-color: rgba(251,113,133,0.22) !important; }
+
+        /* tombol utama: gradasi emas / gradasi merah untuk hapus */
+        #confirmEditBtn, #downloadResultCardBtn, #downloadTradeShareBtn, #downloadDailyShareBtn {
+            background: linear-gradient(180deg, #f5c877, #d9a441) !important;
+            color: #1a1305 !important;
+            box-shadow: 0 12px 26px rgba(217,164,65,0.28), inset 0 1px 0 rgba(255,255,255,0.35) !important;
+            transition: transform .12s ease, filter .18s ease !important;
+        }
+        #confirmDeleteBtn {
+            background: linear-gradient(180deg, #fb7185, #e11d48) !important;
+            box-shadow: 0 12px 26px rgba(225,29,72,0.32), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+            transition: transform .12s ease, filter .18s ease !important;
+        }
+        #confirmEditBtn:hover, #downloadResultCardBtn:hover, #downloadTradeShareBtn:hover, #downloadDailyShareBtn:hover, #confirmDeleteBtn:hover { filter: brightness(1.08); }
+        #confirmEditBtn:active, #downloadResultCardBtn:active, #downloadTradeShareBtn:active, #downloadDailyShareBtn:active, #confirmDeleteBtn:active { transform: scale(0.97); }
+
+        /* kartu preview (hasil & share) dapat bayangan lebih dalam */
+        #resultCardPreview, #tradeSharePreview, #dailyCardPreview {
+            box-shadow: 0 30px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06);
+        }
+
+        /* ═══════════════ TOAST PREMIUM ═══════════════ */
+        .swal2-popup.premium-toast {
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.09) !important;
+            border-left: 3px solid #34d399 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 16px 44px rgba(0,0,0,0.55) !important;
+        }
+        .swal2-popup.premium-toast.is-err { border-left-color: #fb7185 !important; }
+        .premium-toast .swal2-timer-progress-bar { background: #34d399; height: 2px; }
+        .premium-toast.is-err .swal2-timer-progress-bar { background: #fb7185; }
+
+        /* ═══════════════ PREVIEW KARTU (hanya tampilan di layar) ═══════════════
+           Ukuran memakai satuan cqw (persen lebar kartu) dan angkanya diturunkan dari
+           kanvas 1200px (mis. 88px -> 7.33cqw), jadi preview proporsinya sama dengan
+           gambar hasil. Gambar yang disimpan digambar terpisah di kanvas -> tidak terpengaruh. */
+        .cardpv { container-type: inline-size; }
+        .cardpv-inner { position: absolute; inset: 0; padding: 4.67cqw; }
+        .cardpv-col { width: 46cqw; height: 100%; display: flex; flex-direction: column; }
+        .cardpv-head { display: flex; align-items: center; gap: 1.5cqw; }
+        .cardpv-head.between { justify-content: space-between; }
+        .cardpv-logo { width: 6.33cqw; height: 6.33cqw; flex-shrink: 0; border-radius: 1.5cqw;
+            background: rgba(217,164,65,0.18); border: 1px solid rgba(217,164,65,0.45);
+            display: flex; align-items: center; justify-content: center; }
+        .cardpv-logo.sm { width: 5.33cqw; height: 5.33cqw; border-radius: 1.33cqw; }
+        .cardpv-logo svg { width: 100%; height: 100%; }
+        .cardpv-title { font-size: 2.75cqw; font-weight: 700; color: #fff; line-height: 1.15; white-space: nowrap; }
+        .cardpv-title.sm { font-size: 2.5cqw; }
+        .cardpv-date { font-size: 1.92cqw; color: #c9cdd6; line-height: 1.15; margin-top: .67cqw; white-space: nowrap; }
+        .cardpv-badge { font-size: 1.92cqw; font-weight: 700; text-transform: uppercase; height: 4cqw; padding: 0 1.83cqw;
+            border-radius: 999px; display: flex; align-items: center; line-height: 1; }
+        .cardpv-pair { font-size: 4.75cqw; font-weight: 700; color: #fff; line-height: 1; margin-top: 2.33cqw; white-space: nowrap; }
+        .cardpv-label { font-size: 2cqw; font-weight: 700; color: #c9cdd6; line-height: 1; margin-top: 2.33cqw; text-transform: uppercase; white-space: nowrap; }
+        .cardpv-label.tight { margin-top: 1.83cqw; }
+        .cardpv-total { font-size: 7.33cqw; font-weight: 700; line-height: 1; margin-top: .83cqw; white-space: nowrap; }
+        .cardpv-idr { font-size: 2.75cqw; color: #dfe2e8; line-height: 1; margin-top: 1.33cqw; white-space: nowrap; }
+        .cardpv-stats { margin-top: auto; display: flex; gap: .83cqw; }
+        .cardpv-box { flex: 1; position: relative; height: 10.33cqw; border-radius: 1.33cqw; background: rgba(255,255,255,0.05); }
+        .cardpv-box .k, .cardpv-box .v { position: absolute; left: 0; right: 0; text-align: center; line-height: 1; transform: translateY(-50%); white-space: nowrap; }
+        .cardpv-box .k { top: 35%; font-size: 1.67cqw; font-weight: 600; color: #565e70; text-transform: uppercase; }
+        .cardpv-box .v { top: 68%; font-size: 2.5cqw; font-weight: 700; color: #fff; }
+        .modal-hint { text-align: center; font-size: 10px; color: var(--text-faint); }
+
+        /* Preview kartu: diperbesar khusus desktop (HP tetap pakai ukuran di atas) */
+        @media (min-width: 768px) {
+            .cardpv-logo { width: 7.6cqw; height: 7.6cqw; border-radius: 1.8cqw; }
+            .cardpv-logo.sm { width: 6.4cqw; height: 6.4cqw; border-radius: 1.6cqw; }
+            .cardpv-head { gap: 1.9cqw; }
+            .cardpv-title { font-size: 3.4cqw; }
+            .cardpv-title.sm { font-size: 3.1cqw; }
+            .cardpv-date { font-size: 2.4cqw; margin-top: .8cqw; }
+            .cardpv-badge { font-size: 2.3cqw; height: 4.8cqw; padding: 0 2.2cqw; }
+            .cardpv-pair { font-size: 5.8cqw; margin-top: 3cqw; }
+            .cardpv-label { font-size: 2.5cqw; margin-top: 3.2cqw; }
+            .cardpv-label.tight { margin-top: 2.6cqw; }
+            .cardpv-total { font-size: 7.6cqw; margin-top: 1.3cqw; }
+            .cardpv-idr { font-size: 3.4cqw; margin-top: 2cqw; }
+            .cardpv-stats { gap: 1.2cqw; }
+            .cardpv-box { height: 12.5cqw; border-radius: 1.6cqw; }
+            .cardpv-box .k { font-size: 2.1cqw; }
+            .cardpv-box .v { font-size: 3.1cqw; }
+        }
+
+        /* Preview kartu: font HP diperbesar (kecuali .cardpv-total) */
+        @media (max-width: 767px) {
+            .cardpv-logo { width: 8.4cqw; height: 8.4cqw; border-radius: 2cqw; }
+            .cardpv-logo.sm { width: 7cqw; height: 7cqw; border-radius: 1.8cqw; }
+            .cardpv-head { gap: 2cqw; }
+            .cardpv-title { font-size: 4.2cqw; }
+            .cardpv-title.sm { font-size: 3.8cqw; }
+            .cardpv-date { font-size: 3cqw; margin-top: .9cqw; }
+            .cardpv-badge { font-size: 2.8cqw; height: 5.6cqw; padding: 0 2.6cqw; }
+            .cardpv-pair { font-size: 6.6cqw; }
+            .cardpv-label { font-size: 3cqw; }
+            .cardpv-idr { font-size: 4.4cqw; }
+            .cardpv-stats { gap: 1.2cqw; }
+            .cardpv-box { height: 14cqw; border-radius: 1.8cqw; }
+            .cardpv-box .k { font-size: 2.1cqw; }
+            .cardpv-box .v { font-size: 3.2cqw; }
+        }
+
+        /* Spasi: blok tengah (label, total, Rp) dilonggarkan dan diposisikan di tengah kolom */
+        .cardpv-label:not(.tight) { margin-top: auto; }
+        .cardpv-pair { margin-top: auto; }
+        .cardpv-label.tight { margin-top: 2.4cqw; }
+        .cardpv-total { margin-top: 1.8cqw; }
+        .cardpv-idr { margin-top: 2.4cqw; }
+
+        /* ═══════════════ SLIDER KARTU (landscape dulu, lalu 3 portrait) ═══════════════ */
+        .carousel-wrap { position: relative; --cw: min(640px, calc(100vw - 2rem)); }
+        .card-carousel {
+            display: flex;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            height: min(68vh, calc(var(--cw) * 1.3698));
+            border-radius: 24px;
+        }
+        .card-slide {
+            flex: 0 0 100%;
+            height: 100%;
+            scroll-snap-align: center;
+            scroll-snap-stop: always;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-slide > .cardpv { width: 100%; }
+        .card-slide canvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            border-radius: 22px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06);
+        }
+        .slide-msg { font-size: 12px; color: var(--text-faint); text-align: center; padding: 0 24px; }
+        .carousel-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px; height: 32px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 5;
+            line-height: 1;
+        }
+        .carousel-arrow.left { left: 6px; }
+        .carousel-arrow.right { right: 6px; }
+        @media (hover: none) { .carousel-arrow { display: none; } }
+        .carousel-dots { display: flex; justify-content: center; gap: 6px; }
+        .carousel-dots span {
+            width: 6px; height: 6px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.22);
+            transition: width .2s ease, background .2s ease;
+            cursor: pointer;
+        }
+        .carousel-dots span.active { width: 18px; background: var(--accent); }
+
+        /* ═══════════════ HORMATI "KURANGI ANIMASI" ═══════════════ */
+        @media (prefers-reduced-motion: reduce) {
+            #actionModal, #editModal, #deleteModal, #resultCardModal, #tradeShareModal, #dailyShareModal,
+            #actionModal > *, #editModal > *, #deleteModal > *, #resultCardModal > *, #tradeShareModal > *, #dailyShareModal > *,
+            .hold-target::after { transition-duration: .01ms !important; }
+        }
     </style>
 </head>
 <body class="relative">
@@ -299,9 +639,11 @@
                 </div>
             </div>
 
-            <form id="tradeForm" onsubmit="handleSubmit(event)" class="porto-card p-3.5 rounded-2xl space-y-2 lg:shrink-0">
-                <div>
-                    <input type="text" id="pair" list="pairList" required placeholder="Pairs" onblur="formatPairInput(this)" class="w-full porto-input rounded-xl px-3.5 py-2 text-sm uppercase font-display font-medium">
+            <form id="tradeForm" onsubmit="handleSubmit(event)" class="porto-card p-3.5 rounded-2xl space-y-3.5 lg:shrink-0">
+                <div class="grid grid-cols-2 gap-2.5">
+                <div class="field">
+                    <span class="field-label">Pairs</span>
+                    <input type="text" id="pair" list="pairList" required placeholder="BTCUSDT" onblur="formatPairInput(this)" class="w-full porto-input rounded-xl px-3.5 text-sm uppercase">
                     <datalist id="pairList">
                         <option value="ADAUSDT">
                         <option value="ALGOUSDT">
@@ -343,20 +685,30 @@
                     </datalist>
                 </div>
 
-                <div class="grid grid-cols-2 gap-1.5">
-                    <div>
-                        <label class="block text-xs font-medium text-[var(--text-dim)] mb-1">Opened date</label>
-                        <input type="text" id="opened" required placeholder="dd/mm/yyyy" class="w-full porto-input rounded-xl px-3.5 py-2 text-sm font-display">
+                <div class="field">
+                    <span class="field-label">Side</span>
+                    <div class="side-toggle porto-input rounded-xl">
+                        <button type="button" id="sideLongBtn" class="side-btn on-long" onclick="setFormSide('Long')">Long</button>
+                        <button type="button" id="sideShortBtn" class="side-btn" onclick="setFormSide('Short')">Short</button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-[var(--text-dim)] mb-1">Closed date</label>
-                        <input type="text" id="closed" required placeholder="dd/mm/yyyy" class="w-full porto-input rounded-xl px-3.5 py-2 text-sm font-display">
+                </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="field">
+                        <span class="field-label">Opened</span>
+                        <input type="text" id="opened" required placeholder="dd/mm/yyyy" class="w-full porto-input rounded-xl px-3.5 text-sm">
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Closed</span>
+                        <input type="text" id="closed" required placeholder="dd/mm/yyyy" class="w-full porto-input rounded-xl px-3.5 text-sm">
                     </div>
                 </div>
 
-                <div class="relative">
-                    <input type="number" step="any" id="pnl" required placeholder="Closing P&L" oninput="updatePnlPreview()" class="w-full porto-input rounded-xl pl-3.5 pr-24 py-2 num font-medium">
-                    <span id="pnlPreview" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-[var(--text-faint)] num pointer-events-none text-right">≈ Rp 0</span>
+                <div class="field">
+                    <span class="field-label">Closing P&amp;L</span>
+                    <input type="number" step="any" id="pnl" required placeholder="0.00" oninput="updatePnlPreview()" class="w-full porto-input rounded-xl pl-3.5 pr-24 text-sm font-medium">
+                    <span id="pnlPreview" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-[var(--text-faint)] pointer-events-none text-right">≈ Rp 0</span>
                 </div>
 
                 <button type="submit" id="submitBtn" class="w-full bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-[#1a1305] font-semibold py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20">
@@ -416,7 +768,7 @@
                             <span class="section-dot"></span>
                             <h2 class="section-label">Rekap harian</h2>
                         </div>
-                        <span class="text-[10px] text-[var(--text-faint)]">Klik untuk buka</span>
+                        <span class="text-[10px] text-[var(--text-faint)]">Klik untuk buka • Tahan untuk share</span>
                     </div>
                     <div id="dailySummaryList" class="space-y-1.5 overflow-y-auto pr-1 custom-scroll lg:flex-1 lg:min-h-0"></div>
                 </div>
@@ -468,6 +820,13 @@
                 <input type="text" id="editPair" class="w-full porto-input rounded-xl px-3.5 py-2.5 uppercase font-medium">
             </div>
             <div>
+                <label class="block text-xs font-medium text-[var(--text-dim)] mb-1.5">Side</label>
+                <div class="side-toggle porto-input rounded-xl">
+                    <button type="button" id="editSideLongBtn" class="side-btn on-long" onclick="setEditSide('Long')">Long</button>
+                    <button type="button" id="editSideShortBtn" class="side-btn" onclick="setEditSide('Short')">Short</button>
+                </div>
+            </div>
+            <div>
                 <label class="block text-xs font-medium text-[var(--text-dim)] mb-1.5">Closing PNL (USDT)</label>
                 <input type="number" step="any" id="editPnl" class="w-full porto-input rounded-xl px-3.5 py-2.5 num font-medium">
             </div>
@@ -505,72 +864,159 @@
 
     <!-- MODAL KARTU HASIL (long-press di kartu Total P&L) -->
     <div id="resultCardModal" onclick="if(event.target===this) closeResultCardModal()" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="space-y-3 rise-in" style="width: min(380px, 100%);">
-            <div id="resultCardPreview" class="rounded-3xl p-6 relative overflow-hidden font-card" style="background: linear-gradient(160deg, #14110a 0%, #06070b 65%); border: 1px solid var(--border);">
-                <div class="flex items-center gap-2 mb-6">
-                    <div class="logo-mark w-9 h-9 text-base">📈</div>
-                    <div>
-                        <div class="font-bold text-sm text-white leading-none">Trading Log</div>
-                        <div id="resultCardDate" class="text-[10px] text-[var(--text-faint)] mt-1">–</div>
+        <div class="space-y-3 rise-in" style="width: min(640px, 100%);">
+            <div class="carousel-wrap">
+                <div id="resultCarousel" class="card-carousel custom-scroll" onscroll="onCarouselScroll('result')">
+                    <div class="card-slide" id="resultSlide1"></div>
+                    <div class="card-slide" id="resultSlide2"></div>
+                    <div class="card-slide" id="resultSlide3"></div>
+                    <div class="card-slide">
+                        <div id="resultCardPreview" class="cardpv rounded-3xl relative overflow-hidden font-card bg-cover bg-center" style="aspect-ratio: 1200 / 750; border: 1px solid var(--border);">
+                            <div class="cardpv-inner">
+                                <div class="cardpv-col">
+                                    <div class="cardpv-head">
+                                        <div class="cardpv-logo"><svg viewBox="0 0 1 1" fill="none" stroke="#fff" stroke-width="0.09" stroke-linecap="round" stroke-linejoin="round"><polyline points="0.26,0.6536 0.4136,0.5 0.5384,0.5864 0.74,0.26"/><circle cx="0.74" cy="0.26" r="0.07" fill="#fff" stroke="none"/></svg></div>
+                                        <div>
+                                            <div class="cardpv-title">Trading Log</div>
+                                            <div id="resultCardDate" class="cardpv-date">–</div>
+                                        </div>
+                                    </div>
+                                    <div class="cardpv-label" id="resultCardLabel">Total P&amp;L</div>
+                                    <div id="resultCardTotal" class="cardpv-total">–</div>
+                                    <div id="resultCardTotalIdr" class="cardpv-idr">–</div>
+                                    <div class="cardpv-stats">
+                                        <div class="cardpv-box"><div class="k">Trades</div><div id="resultCardCount" class="v">–</div></div>
+                                        <div class="cardpv-box"><div class="k">Win rate</div><div id="resultCardWinRate" class="v">–</div></div>
+                                        <div class="cardpv-box"><div class="k">Avg Harian</div><div id="resultCardAvgDaily" class="v">–</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="text-[10px] font-semibold tracking-wide text-[var(--text-faint)] mb-1 uppercase" id="resultCardLabel">Total P&amp;L</div>
-                <div id="resultCardTotal" class="text-4xl font-bold leading-none mb-1">–</div>
-                <div id="resultCardTotalIdr" class="text-sm text-[var(--text-dim)] mb-6">–</div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div class="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
-                        <div class="text-[9px] text-[var(--text-faint)] mb-1">Trades</div>
-                        <div id="resultCardCount" class="text-sm font-bold text-white">–</div>
-                    </div>
-                    <div class="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
-                        <div class="text-[9px] text-[var(--text-faint)] mb-1">Win rate</div>
-                        <div id="resultCardWinRate" class="text-sm font-bold text-white">–</div>
-                    </div>
-                    <div class="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
-                        <div class="text-[9px] text-[var(--text-faint)] mb-1">Avg Harian</div>
-                        <div id="resultCardAvgDaily" class="text-sm font-bold text-white">–</div>
-                    </div>
-                </div>
+                <button type="button" class="carousel-arrow left" onclick="slideCarousel('result', -1)">‹</button>
+                <button type="button" class="carousel-arrow right" onclick="slideCarousel('result', 1)">›</button>
+            </div>
+            <div id="resultDots" class="carousel-dots">
+                <span class="active" onclick="goSlide('result', 0)"></span>
+                <span onclick="goSlide('result', 1)"></span>
+                <span onclick="goSlide('result', 2)"></span>
+                <span onclick="goSlide('result', 3)"></span>
             </div>
             <div class="flex gap-2">
-                <button type="button" onclick="closeResultCardModal()" class="w-1/2 bg-[var(--surface-2)] hover:bg-[#1d2230] text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition border border-[var(--border)]">
-                    Tutup
+                <button type="button" id="saveResultCardBtn" onclick="downloadResultCard(true)" class="w-1/2 bg-[var(--surface-2)] hover:bg-[#1d2230] text-slate-200 font-semibold py-2.5 rounded-xl text-xs transition border border-[var(--border)]">
+                    💾 Simpan
                 </button>
                 <button type="button" id="downloadResultCardBtn" onclick="downloadResultCard()" class="w-1/2 bg-amber-500 hover:bg-amber-400 text-[#1a1305] font-semibold py-2.5 rounded-xl text-xs transition shadow-lg shadow-amber-500/20">
-                    📥 Simpan Gambar
+                    📤 Bagikan
                 </button>
             </div>
+            <p class="modal-hint">Geser untuk ganti tampilan • Ketuk di luar kartu untuk menutup</p>
         </div>
     </div>
 
     <!-- MODAL SHARE PNL PER TRADE (dari action sheet Edit/Hapus) -->
     <div id="tradeShareModal" onclick="if(event.target===this) closeTradeShareModal()" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="space-y-3 rise-in" style="width: min(380px, 100%);">
-            <div id="tradeSharePreview" class="rounded-3xl p-6 relative overflow-hidden font-card" style="background: linear-gradient(160deg, #14110a 0%, #06070b 65%); border: 1px solid var(--border);">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-2">
-                        <div class="logo-mark w-8 h-8 text-sm">📈</div>
-                        <div class="font-bold text-sm text-white leading-none">Trading Log</div>
+        <div class="space-y-3 rise-in" style="width: min(640px, 100%);">
+            <div class="carousel-wrap">
+                <div id="tradeCarousel" class="card-carousel custom-scroll" onscroll="onCarouselScroll('trade')">
+                    <div class="card-slide" id="tradeSlide1"></div>
+                    <div class="card-slide" id="tradeSlide2"></div>
+                    <div class="card-slide" id="tradeSlide3"></div>
+                    <div class="card-slide">
+                        <div id="tradeSharePreview" class="cardpv rounded-3xl relative overflow-hidden font-card bg-cover bg-center" style="aspect-ratio: 1200 / 750; border: 1px solid var(--border);">
+                            <div class="cardpv-inner">
+                                <div class="cardpv-col">
+                                    <div class="cardpv-head between">
+                                        <div class="cardpv-head">
+                                            <div class="cardpv-logo sm"><svg viewBox="0 0 1 1" fill="none" stroke="#fff" stroke-width="0.09" stroke-linecap="round" stroke-linejoin="round"><polyline points="0.26,0.6536 0.4136,0.5 0.5384,0.5864 0.74,0.26"/><circle cx="0.74" cy="0.26" r="0.07" fill="#fff" stroke="none"/></svg></div>
+                                            <div class="cardpv-title sm">Trading Log</div>
+                                        </div>
+                                        <div id="tradeShareBadge" class="cardpv-badge">–</div>
+                                    </div>
+                                    <div id="tradeSharePair" class="cardpv-pair">–</div>
+                                    <div class="cardpv-label tight">Closing P&amp;L</div>
+                                    <div id="tradeShareTotal" class="cardpv-total">–</div>
+                                    <div id="tradeShareTotalIdr" class="cardpv-idr">–</div>
+                                    <div class="cardpv-stats">
+                                        <div class="cardpv-box"><div class="k">Closed</div><div id="tradeShareClosed" class="v">–</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div id="tradeShareBadge" class="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full">–</div>
                 </div>
-                <div id="tradeSharePair" class="text-2xl font-bold text-white mb-4">–</div>
-                <div class="text-[10px] font-semibold tracking-wide text-[var(--text-faint)] mb-1 uppercase">Closing P&amp;L</div>
-                <div id="tradeShareTotal" class="text-4xl font-bold leading-none mb-1">–</div>
-                <div id="tradeShareTotalIdr" class="text-sm text-[var(--text-dim)] mb-6">–</div>
-                <div class="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
-                    <div class="text-[9px] text-[var(--text-faint)] mb-1">Closed</div>
-                    <div id="tradeShareClosed" class="text-sm font-bold text-white">–</div>
-                </div>
+                <button type="button" class="carousel-arrow left" onclick="slideCarousel('trade', -1)">‹</button>
+                <button type="button" class="carousel-arrow right" onclick="slideCarousel('trade', 1)">›</button>
+            </div>
+            <div id="tradeDots" class="carousel-dots">
+                <span class="active" onclick="goSlide('trade', 0)"></span>
+                <span onclick="goSlide('trade', 1)"></span>
+                <span onclick="goSlide('trade', 2)"></span>
+                <span onclick="goSlide('trade', 3)"></span>
             </div>
             <div class="flex gap-2">
-                <button type="button" onclick="closeTradeShareModal()" class="w-1/2 bg-[var(--surface-2)] hover:bg-[#1d2230] text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition border border-[var(--border)]">
-                    Tutup
+                <button type="button" id="saveTradeShareBtn" onclick="downloadTradeShare(true)" class="w-1/2 bg-[var(--surface-2)] hover:bg-[#1d2230] text-slate-200 font-semibold py-2.5 rounded-xl text-xs transition border border-[var(--border)]">
+                    💾 Simpan
                 </button>
                 <button type="button" id="downloadTradeShareBtn" onclick="downloadTradeShare()" class="w-1/2 bg-amber-500 hover:bg-amber-400 text-[#1a1305] font-semibold py-2.5 rounded-xl text-xs transition shadow-lg shadow-amber-500/20">
-                    📥 Simpan Gambar
+                    📤 Bagikan
                 </button>
             </div>
+            <p class="modal-hint">Geser untuk ganti tampilan • Ketuk di luar kartu untuk menutup</p>
+        </div>
+    </div>
+
+    <!-- MODAL SHARE REKAP HARIAN (tombol share di tiap baris Rekap Harian) -->
+    <div id="dailyShareModal" onclick="if(event.target===this) closeDailyShareModal()" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="space-y-3 rise-in" style="width: min(640px, 100%);">
+            <div class="carousel-wrap">
+                <div id="dailyCarousel" class="card-carousel custom-scroll" onscroll="onCarouselScroll('daily')">
+                    <div class="card-slide" id="dailySlide1"></div>
+                    <div class="card-slide" id="dailySlide2"></div>
+                    <div class="card-slide" id="dailySlide3"></div>
+                    <div class="card-slide">
+                        <div id="dailyCardPreview" class="cardpv rounded-3xl relative overflow-hidden font-card bg-cover bg-center" style="aspect-ratio: 1200 / 750; border: 1px solid var(--border);">
+                            <div class="cardpv-inner">
+                                <div class="cardpv-col">
+                                    <div class="cardpv-head">
+                                        <div class="cardpv-logo"><svg viewBox="0 0 1 1" fill="none" stroke="#fff" stroke-width="0.09" stroke-linecap="round" stroke-linejoin="round"><polyline points="0.26,0.6536 0.4136,0.5 0.5384,0.5864 0.74,0.26"/><circle cx="0.74" cy="0.26" r="0.07" fill="#fff" stroke="none"/></svg></div>
+                                        <div>
+                                            <div class="cardpv-title">Trading Log</div>
+                                            <div id="dailyCardDate" class="cardpv-date">–</div>
+                                        </div>
+                                    </div>
+                                    <div class="cardpv-label">Rekap Harian</div>
+                                    <div id="dailyCardTotal" class="cardpv-total">–</div>
+                                    <div id="dailyCardTotalIdr" class="cardpv-idr">–</div>
+                                    <div class="cardpv-stats">
+                                        <div class="cardpv-box"><div class="k">Trades</div><div id="dailyCardCount" class="v">–</div></div>
+                                        <div class="cardpv-box"><div class="k">Win rate</div><div id="dailyCardWinRate" class="v">–</div></div>
+                                        <div class="cardpv-box"><div class="k">Terbaik</div><div id="dailyCardBest" class="v">–</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="carousel-arrow left" onclick="slideCarousel('daily', -1)">‹</button>
+                <button type="button" class="carousel-arrow right" onclick="slideCarousel('daily', 1)">›</button>
+            </div>
+            <div id="dailyDots" class="carousel-dots">
+                <span class="active" onclick="goSlide('daily', 0)"></span>
+                <span onclick="goSlide('daily', 1)"></span>
+                <span onclick="goSlide('daily', 2)"></span>
+                <span onclick="goSlide('daily', 3)"></span>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" id="saveDailyShareBtn" onclick="downloadDailyShare(true)" class="w-1/2 bg-[var(--surface-2)] hover:bg-[#1d2230] text-slate-200 font-semibold py-2.5 rounded-xl text-xs transition border border-[var(--border)]">
+                    💾 Simpan
+                </button>
+                <button type="button" id="downloadDailyShareBtn" onclick="downloadDailyShare()" class="w-1/2 bg-amber-500 hover:bg-amber-400 text-[#1a1305] font-semibold py-2.5 rounded-xl text-xs transition shadow-lg shadow-amber-500/20">
+                    📤 Bagikan
+                </button>
+            </div>
+            <p class="modal-hint">Geser untuk ganti tampilan • Ketuk di luar kartu untuk menutup</p>
         </div>
     </div>
 
@@ -591,6 +1037,39 @@
         const now_ = new Date();
         let heatmapYear = now_.getFullYear();
         let heatmapMonth = now_.getMonth();
+
+        // Long / Short: leverage selalu 20x (tidak ada input).
+        // Side disimpan di Sheet (kolom Side) lewat parameter &side= dan dibaca balik dari
+        // respons API, jadi sama di semua perangkat. Trade lama yang Side-nya kosong dianggap Long.
+        let formSide = 'Long';
+        let editSide = 'Long';
+        let tradeSideMap = {};
+        try { tradeSideMap = JSON.parse(localStorage.getItem('tradeSideMap') || '{}') || {}; } catch (e) { tradeSideMap = {}; }
+        function saveSideMap() {
+            try { localStorage.setItem('tradeSideMap', JSON.stringify(tradeSideMap)); } catch (e) {}
+        }
+        function getTradeSide(item) {
+            const s = (item && item.side) || 'Long';
+            return String(s).toLowerCase() === 'short' ? 'Short' : 'Long';
+        }
+        function paintSide(longBtn, shortBtn, side) {
+            if (!longBtn || !shortBtn) return;
+            longBtn.classList.toggle('on-long', side === 'Long');
+            shortBtn.classList.toggle('on-short', side === 'Short');
+        }
+        function setFormSide(side) {
+            formSide = side;
+            paintSide(document.getElementById('sideLongBtn'), document.getElementById('sideShortBtn'), side);
+        }
+        function setEditSide(side) {
+            editSide = side;
+            paintSide(document.getElementById('editSideLongBtn'), document.getElementById('editSideShortBtn'), side);
+        }
+
+        // Lama tahan (ms) sebelum popup muncul; isian animasi ngikutin durasi ini
+        const HOLD_ROW_MS = 500;   // baris trade -> action sheet
+        const HOLD_HERO_MS = 550;  // kartu Total P&L -> kartu hasil
+        document.documentElement.style.setProperty('--hold-ms', HOLD_ROW_MS + 'ms');
 
         function fetchRealtimeKurs() {
             fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTIDR")
@@ -670,36 +1149,29 @@
             el.style.color = val === 0 ? 'var(--text-faint)' : (isProfit ? 'var(--profit)' : 'var(--loss)');
         }
 
+        // Toast premium: gelap elegan + garis warna di kiri (hijau = sukses, merah = error)
         function showToast(message, type = 'success') {
+            const ok = type === 'success';
             const Toast = Swal.mixin({
                 toast: true,
                 position: 'top',
                 showConfirmButton: false,
-                timer: 3000,
+                timer: 2600,
                 timerProgressBar: true,
+                customClass: { popup: 'premium-toast ' + (ok ? 'is-ok' : 'is-err') },
                 didOpen: (toast) => {
                     toast.addEventListener('mouseenter', Swal.stopTimer);
                     toast.addEventListener('mouseleave', Swal.resumeTimer);
                 }
             });
 
-            if (type === 'success') {
-                Toast.fire({
-                    icon: 'success',
-                    title: message,
-                    background: 'linear-gradient(to right, #00b09b, #96c93d)',
-                    color: '#ffffff',
-                    iconColor: '#ffffff'
-                });
-            } else {
-                Toast.fire({
-                    icon: 'error',
-                    title: message,
-                    background: 'linear-gradient(to right, #ff416c, #ff4b2b)',
-                    color: '#ffffff',
-                    iconColor: '#ffffff'
-                });
-            }
+            Toast.fire({
+                icon: ok ? 'success' : 'error',
+                title: message,
+                background: 'rgba(18,21,30,0.92)',
+                color: '#eef1f7',
+                iconColor: ok ? '#34d399' : '#fb7185'
+            });
         }
 
         function moveTabIndicator(activeBtn, instant) {
@@ -768,6 +1240,7 @@
         window.onload = function() {
             fetchRealtimeKurs();
             switchTab('rekap', true);
+            setFormSide('Long');
             window.addEventListener('resize', () => {
                 const activeBtn = activeTab === 'rekap' ? document.getElementById('tabBtnRekap') : document.getElementById('tabBtnRiwayat');
                 moveTabIndicator(activeBtn, true);
@@ -879,8 +1352,12 @@
                 pair: pairVal,
                 opened: openedVal,
                 closed: formattedClosedDate,
-                pnl: pnlVal
+                pnl: pnlVal,
+                side: formSide
             };
+
+            tradeSideMap[newItem.no] = formSide;
+            saveSideMap();
 
             if (!cachedGlobalResponse.history) cachedGlobalResponse.history = [];
             cachedGlobalResponse.history.unshift(newItem);
@@ -900,8 +1377,9 @@
             const encOpened = encodeURIComponent(openedVal);
             const encClosed = encodeURIComponent(closedVal);
             const encPnl = encodeURIComponent(pnlVal);
+            const encSide = encodeURIComponent(formSide);
 
-            fetch(`${API_URL}?action=add&pair=${encPair}&opened=${encOpened}&closed=${encClosed}&pnl=${encPnl}`, { cache: 'no-store' })
+            fetch(`${API_URL}?action=add&pair=${encPair}&opened=${encOpened}&closed=${encClosed}&pnl=${encPnl}&side=${encSide}`, { cache: 'no-store' })
                 .catch(err => {
                     console.log(err);
                     showToast("Gagal sync ke Sheet", "error");
@@ -932,6 +1410,7 @@
             document.getElementById('editNoLabel').innerText = item.no;
             document.getElementById('editPair').value = item.pair;
             document.getElementById('editPnl').value = item.pnl;
+            setEditSide(getTradeSide(item));
             document.getElementById('editModal').classList.remove('hidden');
         };
 
@@ -954,6 +1433,7 @@
             let newPair = document.getElementById('editPair').value.trim().toUpperCase();
             if (newPair && !newPair.includes('USDT')) newPair += 'USDT';
             const newPnl = parseFloat(document.getElementById('editPnl').value) || 0;
+            const newSide = editSide;
 
             closeEditModal();
 
@@ -961,13 +1441,16 @@
             if (idx === -1) return;
             cachedGlobalResponse.history[idx].pair = newPair;
             cachedGlobalResponse.history[idx].pnl = newPnl;
+            cachedGlobalResponse.history[idx].side = newSide;
+            tradeSideMap[no] = newSide;
+            saveSideMap();
             recalcTotals();
 
             localStorage.setItem('tradingDataCache', JSON.stringify(cachedGlobalResponse));
             renderDashboard(cachedGlobalResponse);
             showToast("Trade diupdate", "success");
 
-            fetch(`${API_URL}?action=edit&no=${encodeURIComponent(no)}&pair=${encodeURIComponent(newPair)}&pnl=${encodeURIComponent(newPnl)}`, { cache: 'no-store' })
+            fetch(`${API_URL}?action=edit&no=${encodeURIComponent(no)}&pair=${encodeURIComponent(newPair)}&pnl=${encodeURIComponent(newPnl)}&side=${encodeURIComponent(newSide)}`, { cache: 'no-store' })
                 .catch(err => {
                     console.log(err);
                     showToast("Gagal sync edit ke Sheet", "error");
@@ -987,6 +1470,8 @@
             if (cachedGlobalResponse.history) {
                 cachedGlobalResponse.history = cachedGlobalResponse.history.filter(item => parseInt(item.no) !== parseInt(no));
             }
+            delete tradeSideMap[no];
+            saveSideMap();
             recalcTotals();
 
             localStorage.setItem('tradingDataCache', JSON.stringify(cachedGlobalResponse));
@@ -1001,31 +1486,34 @@
                 });
         };
 
+        // Tahan lama pada baris -> isian terisi -> action sheet muncul.
+        // Dilepas / digeser sebelum penuh = batal.
         function bindLongPress(element, no) {
+            element.classList.add('hold-target');
             let pressTimer = null;
 
-            const startPress = (e) => {
-                if (e.type === 'click') return;
+            const clear = () => {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+                element.classList.remove('holding');
+            };
+
+            const start = (e) => {
+                if (e.type === 'mousedown' && e.button !== 0) return; // klik kiri saja
+                clear();
+                element.classList.add('holding');
                 pressTimer = setTimeout(() => {
+                    pressTimer = null;
+                    element.classList.remove('holding');
                     if (navigator.vibrate) navigator.vibrate(50);
                     handleHapus(no);
-                }, 500);
+                }, HOLD_ROW_MS);
             };
 
-            const cancelPress = () => {
-                if (pressTimer) {
-                    clearTimeout(pressTimer);
-                    pressTimer = null;
-                }
-            };
+            element.addEventListener('mousedown', start);
+            element.addEventListener('touchstart', start, { passive: true });
 
-            element.addEventListener('mousedown', startPress);
-            element.addEventListener('touchstart', startPress, { passive: true });
-
-            element.addEventListener('mouseup', cancelPress);
-            element.addEventListener('mouseleave', cancelPress);
-            element.addEventListener('touchend', cancelPress);
-            element.addEventListener('touchmove', cancelPress);
+            ['mouseup', 'mouseleave', 'touchend', 'touchmove', 'touchcancel'].forEach(ev => element.addEventListener(ev, clear));
             element.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
             });
@@ -1063,8 +1551,93 @@
             return div;
         }
 
+        // Tahan lama pada baris Rekap Harian -> isian terisi -> langsung preview kartu rekap.
+        // Klik biasa tetap buka/tutup daftar trade hari itu.
+        function bindDayHold(element, date) {
+            element.classList.add('hold-target');
+            let pressTimer = null;
+
+            const clear = () => {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+                element.classList.remove('holding');
+            };
+
+            const start = (e) => {
+                if (e.type === 'mousedown' && e.button !== 0) return;
+                clear();
+                element._holdFired = false;
+                element.classList.add('holding');
+                pressTimer = setTimeout(() => {
+                    pressTimer = null;
+                    element.classList.remove('holding');
+                    element._holdFired = true;
+                    if (navigator.vibrate) navigator.vibrate(50);
+                    openDailyShareModal(date);
+                }, HOLD_ROW_MS);
+            };
+
+            element.addEventListener('mousedown', start);
+            element.addEventListener('touchstart', start, { passive: true });
+            ['mouseup', 'mouseleave', 'touchend', 'touchmove', 'touchcancel'].forEach(ev => element.addEventListener(ev, clear));
+            element.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        function getDayPanelId(date) {
+            return 'dayPanel-' + String(date).replace(/[^A-Za-z0-9]/g, '');
+        }
+
+        // Toggle expand/collapse rekap harian. Kalau lagi nutup (klik ulang tanggal
+        // yang sudah expand), animasikan dulu panelnya mengecil & memudar sebelum
+        // benar-benar dihapus dari DOM lewat render ulang -> collapse jadi smooth,
+        // bukan langsung "ilang" instan kayak sebelumnya.
         function toggleExpand(date) {
-            expandedDate = (expandedDate === date) ? null : date;
+            if (expandedDate === date) {
+                const panel = document.getElementById(getDayPanelId(date));
+                if (panel) {
+                    const startHeight = panel.scrollHeight;
+                    panel.classList.remove('expand-in');
+                    panel.style.maxHeight = startHeight + 'px';
+                    panel.style.opacity = '1';
+                    panel.style.transform = 'translateY(0)';
+                    panel.classList.add('collapsing');
+                    void panel.offsetHeight; // force reflow biar transisi ke-trigger
+                    requestAnimationFrame(() => {
+                        panel.style.maxHeight = '0px';
+                        panel.style.opacity = '0';
+                        panel.style.transform = 'translateY(-4px)';
+                    });
+
+                    // Update tampilan baris & chevron duluan biar responsif,
+                    // ga nunggu render ulang yang baru jalan setelah animasi kelar.
+                    const row = panel.previousElementSibling;
+                    if (row) {
+                        const chevron = row.querySelector('.chevron');
+                        if (chevron) chevron.classList.remove('open');
+                        row.classList.remove('bg-amber-500/10', 'border-amber-500', 'ring-1', 'ring-amber-500');
+                        row.classList.add('bg-[var(--bg)]', 'border-[var(--border)]', 'hover:border-slate-600');
+                    }
+
+                    let finished = false;
+                    const finish = () => {
+                        if (finished) return;
+                        finished = true;
+                        expandedDate = null;
+                        renderDailySummary(cachedGlobalResponse.history || [], false);
+                    };
+                    panel.addEventListener('transitionend', function handler(e) {
+                        if (e.propertyName !== 'max-height') return;
+                        panel.removeEventListener('transitionend', handler);
+                        finish();
+                    });
+                    // Jaga-jaga kalau transitionend ga kepanggil (misal panel dilepas duluan)
+                    setTimeout(finish, 300);
+                    return;
+                }
+                expandedDate = null;
+            } else {
+                expandedDate = date;
+            }
             renderDailySummary(cachedGlobalResponse.history || [], false);
         }
 
@@ -1107,7 +1680,11 @@
                 }`;
                 row.style.borderLeftColor = isProf ? 'var(--profit)' : 'var(--loss)';
                 row.style.animationDelay = `${i * 25}ms`;
-                row.onclick = () => toggleExpand(date);
+                row.onclick = () => {
+                    if (row._holdFired) { row._holdFired = false; return; } // habis klik-tahan, jangan ikut buka/tutup
+                    toggleExpand(date);
+                };
+                bindDayHold(row, date);
                 row.innerHTML = `
                     <div class="flex items-center gap-2 min-w-0">
                         <svg class="chevron ${isExpanded ? 'open' : ''} shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
@@ -1129,6 +1706,7 @@
 
                 if (isExpanded) {
                     const panel = document.createElement('div');
+                    panel.id = getDayPanelId(date);
                     panel.className = 'expand-in space-y-2 pl-1 pt-1';
                     const dayTrades = data.filter(item => item.closed === date);
                     dayTrades.forEach((item, idx) => {
@@ -1201,19 +1779,29 @@
         let heroLongPressTimer = null;
         let heroLongPressFired = false;
         let heroStartX = 0, heroStartY = 0;
+        let heroPressEl = null;
 
         function startHeroLongPress(e) {
             // Jangan ganggu interaksi drag di equity curve (buat lihat tooltip tanggal)
             if (e.target.closest && e.target.closest('#equityCurve')) return;
+            clearHeroLongPress();
+
             const touch = e.touches ? e.touches[0] : e;
             heroStartX = touch.clientX;
             heroStartY = touch.clientY;
             heroLongPressFired = false;
+
+            // isian animasi di kartu selama ditahan
+            heroPressEl = e.currentTarget;
+            heroPressEl.classList.add('hold-target', 'holding');
+            heroPressEl.style.setProperty('--hold-ms', HOLD_HERO_MS + 'ms');
+
             heroLongPressTimer = setTimeout(() => {
                 heroLongPressFired = true;
+                if (heroPressEl) heroPressEl.classList.remove('holding');
                 if (navigator.vibrate) navigator.vibrate(50);
                 openResultCardModal();
-            }, 550);
+            }, HOLD_HERO_MS);
         }
 
         function moveHeroLongPress(e) {
@@ -1227,6 +1815,7 @@
         function clearHeroLongPress() {
             clearTimeout(heroLongPressTimer);
             heroLongPressTimer = null;
+            if (heroPressEl) heroPressEl.classList.remove('holding');
         }
 
         function openResultCardModal() {
@@ -1235,28 +1824,35 @@
             const total = isNetPnlView ? gross * 0.9 : gross;
             const isProfit = total >= 0;
 
+            document.getElementById('resultCardPreview').style.backgroundImage = `url('${isProfit ? CARD_BG_PROFIT : CARD_BG_LOSS}')`;
+
             const totalEl = document.getElementById('resultCardTotal');
-            totalEl.textContent = `${isProfit ? '+' : ''}${total.toFixed(2)} USDT`;
-            totalEl.className = `text-4xl font-bold leading-none mb-1 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
+            totalEl.textContent = `${fmtNumUS(total)} USDT`;
+            totalEl.className = `cardpv-total ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
 
             document.getElementById('resultCardLabel').textContent = isNetPnlView ? 'Total Net P&L' : 'Total P&L';
-            document.getElementById('resultCardTotalIdr').textContent = formatRupiah(total * currentKursIdr);
+            document.getElementById('resultCardTotalIdr').textContent = formatRupiahCard(total * currentKursIdr);
             document.getElementById('resultCardCount').textContent = res.totalTrades || 0;
             document.getElementById('resultCardWinRate').textContent = `${res.winRate || 0}%`;
 
             const avgDaily = lastQuickStats.daily || 0;
             const avgDailyEl = document.getElementById('resultCardAvgDaily');
-            avgDailyEl.textContent = `${avgDaily >= 0 ? '+' : ''}${avgDaily.toFixed(2)}`;
-            avgDailyEl.className = `text-sm font-bold ${avgDaily >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+            avgDailyEl.textContent = fmtNumUS(avgDaily);
+            avgDailyEl.style.color = avgDaily >= 0 ? '#34d399' : '#fb7185';
 
             const now = new Date();
             document.getElementById('resultCardDate').textContent = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
+            resetCarousel('result');
+            renderPortraitSlides('result', 'total', getTotalCardData());
+
             document.getElementById('resultCardModal').classList.remove('hidden');
+            previewModalOpened();
         }
 
         function closeResultCardModal() {
             document.getElementById('resultCardModal').classList.add('hidden');
+            previewModalClosed();
         }
 
         // ══════════════════════════════
@@ -1265,6 +1861,25 @@
         //  html2canvas nge-capture DOM (yang suka meleset buat emoji/badge kecil).
         // ══════════════════════════════
         const CARD_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        // Background karakter custom punya user, satu folder sama index.html.
+        const CARD_BG_PROFIT = 'imgprofit-bg.png';
+        const CARD_BG_LOSS = 'imgloss-bg.png';
+        const cardBgCache = {};
+
+        function loadCardBgImage(src) {
+            if (cardBgCache[src]) return cardBgCache[src];
+            cardBgCache[src] = new Promise((resolve, reject) => {
+                const img = new Image();
+                // TIDAK pakai crossOrigin='anonymous' - gambarnya satu folder/origin
+                // yang sama, jadi ga perlu CORS. Kalau di-set, malah bikin gagal
+                // load pas file HTML dibuka langsung dari komputer (file://),
+                // karena file:// ga punya header CORS sama sekali.
+                img.onload = () => resolve(img);
+                img.onerror = (err) => { delete cardBgCache[src]; reject(err); };
+                img.src = src;
+            });
+            return cardBgCache[src];
+        }
 
         function drawRoundRectPath(ctx, x, y, w, h, r) {
             ctx.beginPath();
@@ -1307,39 +1922,21 @@
             ctx.fill();
         }
 
-        function drawCardBackground(ctx, w, h) {
-            // Fill dulu SELURUH canvas pake warna gelap solid -> biar pojok-pojok
-            // di luar area rounded-rect (yang secara teknis ga ke-fill sama
-            // gradient rounded di bawah) ga transparan/muncul putih pas dibuka.
-            ctx.fillStyle = '#06070b';
-            ctx.fillRect(0, 0, w, h);
-
-            const grad = ctx.createLinearGradient(0, 0, w, h);
-            grad.addColorStop(0, '#14110a');
-            grad.addColorStop(0.65, '#06070b');
-            drawRoundRectPath(ctx, 0.5, 0.5, w - 1, h - 1, 28);
-            ctx.fillStyle = grad;
-            ctx.fill();
-            ctx.strokeStyle = '#212635';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-
         // Kotak label kecil di atas + nilai gede di bawah, semuanya di-center
         // pakai textBaseline 'middle' -> dijamin pas, ga meleset.
         function drawStatBox(ctx, x, y, w, h, label, value, valueColor) {
-            drawRoundRectPath(ctx, x, y, w, h, 14);
+            drawRoundRectPath(ctx, x, y, w, h, 16);
             ctx.fillStyle = 'rgba(255,255,255,0.05)';
             ctx.fill();
 
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#565e70';
-            ctx.font = `600 13px ${CARD_FONT}`;
+            ctx.font = `600 20px ${CARD_FONT}`;
             ctx.fillText(label, x + w / 2, y + h * 0.35);
 
             ctx.fillStyle = valueColor || '#ffffff';
-            ctx.font = `700 20px ${CARD_FONT}`;
+            ctx.font = `700 30px ${CARD_FONT}`;
             ctx.fillText(value, x + w / 2, y + h * 0.68);
         }
 
@@ -1351,88 +1948,151 @@
             showToast('Gambar berhasil disimpan!', 'success');
         }
 
-        function buildResultCardCanvas() {
+        // Coba pakai native share sheet HP (langsung ke WA/Instagram/dll tanpa
+        // harus masuk galeri dulu). Kalau device/browser-nya ga support fitur
+        // ini (kebanyakan browser desktop), turun otomatis ke download biasa.
+        async function shareOrDownloadCanvas(canvas, filename) {
+            if (navigator.share && navigator.canShare) {
+                try {
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    if (blob) {
+                        const file = new File([blob], filename, { type: 'image/png' });
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({ files: [file], title: 'Trading Log' });
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return; // user batal di share sheet
+                    console.log(err);
+                }
+            }
+            downloadCanvasCard(canvas, filename);
+        }
+
+        async function buildResultCardCanvas() {
             const res = cachedGlobalResponse;
             const gross = parseFloat(res.totalPnl) || 0;
             const total = isNetPnlView ? gross * 0.9 : gross;
             const isProfit = total >= 0;
-            const totalText = `${isProfit ? '+' : ''}${total.toFixed(2)} USDT`;
-            const idrText = formatRupiah(total * currentKursIdr);
+            const totalText = `${fmtNumUS(total)} USDT`;
+            const idrText = formatRupiahCard(total * currentKursIdr);
             const label = isNetPnlView ? 'TOTAL NET P&L' : 'TOTAL P&L';
             const now = new Date();
             const dateText = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-            const W = 700, PAD = 48;
-            const H = 860;
+            const bgImg = await loadCardBgImage(isProfit ? CARD_BG_PROFIT : CARD_BG_LOSS);
+
+            // Ukuran canvas ngikutin rasio gambar background aslinya (biar
+            // karakter & framing-nya ga kepotong/ke-stretch).
+            const W = 1200;
+            const H = Math.round(W * (bgImg.naturalHeight / bgImg.naturalWidth));
             const canvas = document.createElement('canvas');
             canvas.width = W;
             canvas.height = H;
             const ctx = canvas.getContext('2d');
 
-            drawCardBackground(ctx, W, H);
+            // Fill hitam solid dulu -> gambar background lu punya area transparan
+            // di pojok bundernya, kalau ga di-fill dulu bakal muncul checkered/putih
+            // pas dibuka di viewer PNG biasa.
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+            ctx.drawImage(bgImg, 0, 0, W, H);
 
-            let cy = PAD;
+            // Teks cuma ditaruh di kolom kiri (area kosong di gambar), dipersempit
+            // dikit (0.46 bukan 0.5) biar ga nyenggol karakternya yang nempel di kanan.
+            const PAD = 56;
             const cx = PAD;
+            let cy = PAD;
+            const colW = W * 0.46;
 
-            const logoSize = 48;
-            drawRoundRectPath(ctx, cx, cy, logoSize, logoSize, 14);
-            ctx.fillStyle = 'rgba(217,164,65,0.12)';
+            const logoSize = 76;
+            drawRoundRectPath(ctx, cx, cy, logoSize, logoSize, 18);
+            ctx.fillStyle = 'rgba(217,164,65,0.18)';
             ctx.fill();
-            ctx.strokeStyle = 'rgba(217,164,65,0.35)';
+            ctx.strokeStyle = 'rgba(217,164,65,0.45)';
             ctx.lineWidth = 1;
             ctx.stroke();
             drawLogoIcon(ctx, cx, cy, logoSize, '#ffffff');
 
-            const textX = cx + logoSize + 14;
+            // Judul & tanggal di-center vertikal dalam tinggi kotak logo,
+            // dihitung dari tinggi baris teksnya sendiri (bukan fraksi tetap)
+            // biar rapi berapapun ukuran fontnya.
+            const textX = cx + logoSize + 18;
+            const titleFont = 33, dateFont = 23;
+            const titleLineH = titleFont * 1.15, dateLineH = dateFont * 1.15, lineGap = 8;
+            const headerTextH = titleLineH + lineGap + dateLineH;
+            const headerTextTop = cy + (logoSize - headerTextH) / 2;
             ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#ffffff';
-            ctx.font = `700 22px ${CARD_FONT}`;
-            ctx.fillText('Trading Log', textX, cy + logoSize * 0.36);
-            ctx.fillStyle = '#565e70';
-            ctx.font = `400 15px ${CARD_FONT}`;
-            ctx.fillText(dateText, textX, cy + logoSize * 0.76);
-
-            cy += logoSize + 40;
-
             ctx.textBaseline = 'top';
-            ctx.fillStyle = '#565e70';
-            ctx.font = `700 16px ${CARD_FONT}`;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `700 ${titleFont}px ${CARD_FONT}`;
+            ctx.fillText('Trading Log', textX, headerTextTop);
+            ctx.fillStyle = '#c9cdd6';
+            ctx.font = `400 ${dateFont}px ${CARD_FONT}`;
+            ctx.fillText(dateText, textX, headerTextTop + titleLineH + lineGap);
+
+            cy += logoSize + 28;
+
+            ctx.fillStyle = '#c9cdd6';
+            ctx.font = `700 24px ${CARD_FONT}`;
             ctx.fillText(label, cx, cy);
-            cy += 16 + 10;
+            cy += 24 + 10;
 
             ctx.fillStyle = isProfit ? '#34d399' : '#fb7185';
-            ctx.font = `700 60px ${CARD_FONT}`;
+            ctx.font = `700 88px ${CARD_FONT}`;
             ctx.fillText(totalText, cx, cy);
-            cy += 60 + 14;
+            cy += 88 + 16;
 
-            ctx.fillStyle = '#8891a4';
-            ctx.font = `400 22px ${CARD_FONT}`;
+            ctx.fillStyle = '#dfe2e8';
+            ctx.font = `400 33px ${CARD_FONT}`;
             ctx.fillText(idrText, cx, cy);
-            cy += 22 + 42;
 
+            // Kotak statistik di-anchor ke BAWAH kartu (bukan nyambung dari atas)
+            // -> jaraknya ke teks di atas otomatis lega, dan ga pernah nyenggol
+            // area gambar karena tetap dalam kolom kiri yang udah dipersempit.
             const avgDaily = lastQuickStats.daily || 0;
-            const avgDailyText = `${avgDaily >= 0 ? '+' : ''}${avgDaily.toFixed(2)}`;
+            const avgDailyText = fmtNumUS(avgDaily);
             const stats = [
                 { label: 'TRADES', value: String(res.totalTrades || 0) },
                 { label: 'WIN RATE', value: `${res.winRate || 0}%` },
                 { label: 'AVG HARIAN', value: avgDailyText, color: avgDaily >= 0 ? '#34d399' : '#fb7185' }
             ];
-            const boxGap = 16;
-            const boxW = (W - PAD * 2 - boxGap * 2) / 3;
-            const boxH = 100;
+            const boxGap = 10;
+            const boxW = (colW - boxGap * 2) / 3;
+            const boxH = 124;
+            const statRowY = H - PAD - boxH;
             stats.forEach((s, i) => {
-                drawStatBox(ctx, cx + i * (boxW + boxGap), cy, boxW, boxH, s.label, s.value, s.color);
+                drawStatBox(ctx, cx + i * (boxW + boxGap), statRowY, boxW, boxH, s.label, s.value, s.color);
             });
 
             return canvas;
         }
 
-        function downloadResultCard() {
-            const canvas = buildResultCardCanvas();
-            const now = new Date();
-            const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-            downloadCanvasCard(canvas, `TradingLog_Hasil_${ts}.png`);
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function fileStamp(now) {
+            return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}_${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+        }
+
+        async function downloadResultCard(saveOnly) {
+            try {
+                const idx = slideState.result;
+                const now = new Date();
+                const ts = fileStamp(now);
+                const kind = isNetPnlView ? 'Net' : 'Total';
+                let canvas, fname;
+                if (idx === LANDSCAPE_SLIDE) {
+                    canvas = await buildResultCardCanvas();
+                    fname = `TradingLog_${kind}_${ts}.png`;
+                } else {
+                    canvas = await buildPortraitCanvas('total', idx + 1, getTotalCardData());
+                    fname = `TradingLog_${kind}_P${idx + 1}_${ts}.png`;
+                }
+                if (saveOnly) downloadCanvasCard(canvas, fname); else shareOrDownloadCanvas(canvas, fname);
+            } catch (err) {
+                console.log(err);
+                showToast('Gagal muat gambar background', 'error');
+            }
         }
 
         // ══════════════════════════════
@@ -1445,53 +2105,69 @@
             const pnlNum = parseFloat(item.pnl) || 0;
             const isProfit = pnlNum >= 0;
 
+            document.getElementById('tradeSharePreview').style.backgroundImage = `url('${isProfit ? CARD_BG_PROFIT : CARD_BG_LOSS}')`;
+
             document.getElementById('tradeSharePair').textContent = item.pair;
 
             const badgeEl = document.getElementById('tradeShareBadge');
             badgeEl.textContent = isProfit ? 'PROFIT' : 'LOSS';
-            badgeEl.className = `text-[10px] font-bold uppercase px-2.5 py-1 rounded-full ${isProfit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`;
+            badgeEl.className = `cardpv-badge ${isProfit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`;
 
             const totalEl = document.getElementById('tradeShareTotal');
-            totalEl.textContent = `${isProfit ? '+' : ''}${pnlNum.toFixed(2)} USDT`;
-            totalEl.className = `text-4xl font-bold leading-none mb-1 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
+            totalEl.textContent = `${fmtNumUS(pnlNum)} USDT`;
+            totalEl.className = `cardpv-total ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
 
-            document.getElementById('tradeShareTotalIdr').textContent = formatRupiah(pnlNum * currentKursIdr);
+            document.getElementById('tradeShareTotalIdr').textContent = formatRupiahCard(pnlNum * currentKursIdr);
             document.getElementById('tradeShareClosed').textContent = item.closed || '-';
 
+            resetCarousel('trade');
+            renderPortraitSlides('trade', 'trade', getTradeCardData(item));
+
             document.getElementById('tradeShareModal').classList.remove('hidden');
+            previewModalOpened();
         }
 
         function closeTradeShareModal() {
             document.getElementById('tradeShareModal').classList.add('hidden');
             tradeShareItem = null;
+            previewModalClosed();
         }
 
-        function buildTradeShareCanvas(item) {
+        async function buildTradeShareCanvas(item) {
             const pnlNum = parseFloat(item.pnl) || 0;
             const isProfit = pnlNum >= 0;
-            const totalText = `${isProfit ? '+' : ''}${pnlNum.toFixed(2)} USDT`;
-            const idrText = formatRupiah(pnlNum * currentKursIdr);
+            const totalText = `${fmtNumUS(pnlNum)} USDT`;
+            const idrText = formatRupiahCard(pnlNum * currentKursIdr);
             const badgeText = isProfit ? 'PROFIT' : 'LOSS';
             const badgeColor = isProfit ? '#34d399' : '#fb7185';
             const badgeBg = isProfit ? 'rgba(52,211,153,0.15)' : 'rgba(251,113,133,0.15)';
 
-            const W = 700, PAD = 48;
-            const H = 760;
+            const bgImg = await loadCardBgImage(isProfit ? CARD_BG_PROFIT : CARD_BG_LOSS);
+
+            const W = 1200;
+            const H = Math.round(W * (bgImg.naturalHeight / bgImg.naturalWidth));
             const canvas = document.createElement('canvas');
             canvas.width = W;
             canvas.height = H;
             const ctx = canvas.getContext('2d');
 
-            drawCardBackground(ctx, W, H);
+            // Fill hitam solid dulu -> sama kayak di kartu hasil, biar pojok
+            // transparan gambar ga muncul checkered/putih pas di-export.
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+            ctx.drawImage(bgImg, 0, 0, W, H);
 
-            let cy = PAD;
+            // Kolom teks dipersempit (0.46 bukan 0.5) biar ga nyenggol karakter.
+            const PAD = 56;
             const cx = PAD;
+            let cy = PAD;
+            const colW = W * 0.46;
 
-            const logoSize = 42;
-            drawRoundRectPath(ctx, cx, cy, logoSize, logoSize, 12);
-            ctx.fillStyle = 'rgba(217,164,65,0.12)';
+            const logoSize = 64;
+            drawRoundRectPath(ctx, cx, cy, logoSize, logoSize, 16);
+            ctx.fillStyle = 'rgba(217,164,65,0.18)';
             ctx.fill();
-            ctx.strokeStyle = 'rgba(217,164,65,0.35)';
+            ctx.strokeStyle = 'rgba(217,164,65,0.45)';
             ctx.lineWidth = 1;
             ctx.stroke();
             drawLogoIcon(ctx, cx, cy, logoSize, '#ffffff');
@@ -1499,17 +2175,17 @@
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#ffffff';
-            ctx.font = `700 20px ${CARD_FONT}`;
-            ctx.fillText('Trading Log', cx + logoSize + 14, cy + logoSize / 2);
+            ctx.font = `700 30px ${CARD_FONT}`;
+            ctx.fillText('Trading Log', cx + logoSize + 16, cy + logoSize / 2);
 
-            // Badge PROFIT/LOSS pojok kanan atas, tinggi & lebar dihitung dari
-            // ukuran teksnya sendiri, di-center pakai textBaseline 'middle'.
-            ctx.font = `700 15px ${CARD_FONT}`;
+            // Badge PROFIT/LOSS: dibatasi nempel di ujung kanan KOLOM KIRI
+            // (bukan ujung kanan seluruh gambar), biar ga numpuk sama karakter.
+            ctx.font = `700 23px ${CARD_FONT}`;
             const badgeTextW = ctx.measureText(badgeText).width;
-            const badgePadX = 18;
+            const badgePadX = 22;
             const badgeW = badgeTextW + badgePadX * 2;
-            const badgeH = 40;
-            const badgeX = W - PAD - badgeW;
+            const badgeH = 48;
+            const badgeX = cx + colW - badgeW;
             const badgeY = cy + logoSize / 2 - badgeH / 2;
             drawRoundRectPath(ctx, badgeX, badgeY, badgeW, badgeH, badgeH / 2);
             ctx.fillStyle = badgeBg;
@@ -1519,39 +2195,571 @@
             ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
             ctx.textAlign = 'left';
 
-            cy += logoSize + 48;
+            cy += logoSize + 28;
 
             ctx.textBaseline = 'top';
             ctx.fillStyle = '#ffffff';
-            ctx.font = `700 40px ${CARD_FONT}`;
+            ctx.font = `700 57px ${CARD_FONT}`;
             ctx.fillText(item.pair, cx, cy);
-            cy += 40 + 30;
+            cy += 57 + 22;
 
-            ctx.fillStyle = '#565e70';
-            ctx.font = `700 16px ${CARD_FONT}`;
+            ctx.fillStyle = '#c9cdd6';
+            ctx.font = `700 24px ${CARD_FONT}`;
             ctx.fillText('CLOSING P&L', cx, cy);
-            cy += 16 + 10;
+            cy += 24 + 10;
 
             ctx.fillStyle = badgeColor;
-            ctx.font = `700 60px ${CARD_FONT}`;
+            ctx.font = `700 88px ${CARD_FONT}`;
             ctx.fillText(totalText, cx, cy);
-            cy += 60 + 14;
+            cy += 88 + 16;
 
-            ctx.fillStyle = '#8891a4';
-            ctx.font = `400 22px ${CARD_FONT}`;
+            ctx.fillStyle = '#dfe2e8';
+            ctx.font = `400 33px ${CARD_FONT}`;
             ctx.fillText(idrText, cx, cy);
-            cy += 22 + 42;
 
-            drawStatBox(ctx, cx, cy, W - PAD * 2, 100, 'CLOSED', item.closed || '-');
+            // Kotak Closed di-anchor ke BAWAH kartu, jarak ke teks di atas
+            // otomatis lega dan tetap di kolom kiri (ga nyenggol karakter).
+            const boxH = 124;
+            const statRowY = H - PAD - boxH;
+            drawStatBox(ctx, cx, statRowY, colW, boxH, 'CLOSED', item.closed || '-');
 
             return canvas;
         }
 
-        function downloadTradeShare() {
+        // Sekarang pakai shareOrDownloadCanvas (coba share sheet HP dulu) -
+        // sebelumnya fungsi ini langsung download paksa ke galeri.
+        async function downloadTradeShare(saveOnly) {
             if (!tradeShareItem) return;
-            const canvas = buildTradeShareCanvas(tradeShareItem);
-            const pairName = (tradeShareItem.pair || 'trade').replace(/[^A-Z0-9]/gi, '');
-            downloadCanvasCard(canvas, `TradingLog_${pairName}_PNL.png`);
+            try {
+                const idx = slideState.trade;
+                const pairName = (tradeShareItem.pair || 'trade').replace(/[^A-Z0-9]/gi, '');
+                const ts = fileStamp(new Date());
+                let canvas, fname;
+                if (idx === LANDSCAPE_SLIDE) {
+                    canvas = await buildTradeShareCanvas(tradeShareItem);
+                    fname = `TradingLog_${pairName}_${ts}.png`;
+                } else {
+                    canvas = await buildPortraitCanvas('trade', idx + 1, getTradeCardData(tradeShareItem));
+                    fname = `TradingLog_${pairName}_P${idx + 1}_${ts}.png`;
+                }
+                if (saveOnly) downloadCanvasCard(canvas, fname); else shareOrDownloadCanvas(canvas, fname);
+            } catch (err) {
+                console.log(err);
+                showToast('Gagal muat gambar background', 'error');
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════
+        //  SLIDER KARTU: slide 0 = landscape lama, slide 1-3 = portrait
+        // ══════════════════════════════════════════════════════════
+        let slideState = { result: 0, trade: 0, daily: 0 };
+        const LANDSCAPE_SLIDE = 3; // urutan slide: portrait 1, 2, 3, lalu landscape di paling belakang
+        const portraitToken = { result: 0, trade: 0, daily: 0 };
+
+        function updateDots(prefix, idx) {
+            document.querySelectorAll(`#${prefix}Dots span`).forEach((d, i) => d.classList.toggle('active', i === idx));
+        }
+
+        function onCarouselScroll(prefix) {
+            const el = document.getElementById(prefix + 'Carousel');
+            if (!el || !el.clientWidth) return;
+            const idx = Math.max(0, Math.min(3, Math.round(el.scrollLeft / el.clientWidth)));
+            if (idx === slideState[prefix]) return;
+            slideState[prefix] = idx;
+            updateDots(prefix, idx);
+        }
+
+        function goSlide(prefix, idx) {
+            const el = document.getElementById(prefix + 'Carousel');
+            if (!el) return;
+            const target = Math.max(0, Math.min(3, idx));
+            el.scrollTo({ left: target * el.clientWidth, behavior: 'smooth' });
+        }
+
+        function slideCarousel(prefix, dir) {
+            goSlide(prefix, slideState[prefix] + dir);
+        }
+
+        function resetCarousel(prefix) {
+            const el = document.getElementById(prefix + 'Carousel');
+            slideState[prefix] = 0;
+            if (el) {
+                el.style.scrollBehavior = 'auto';
+                el.scrollLeft = 0;
+                el.style.scrollBehavior = '';
+            }
+            updateDots(prefix, 0);
+        }
+
+        // ══════════════════════════════════════════════════════════
+        //  KARTU PORTRAIT (gaya Binance Futures)
+        //  Background kosong (avatar, nama Romini, footer & QR sudah ada di gambar),
+        //  yang digambar di atasnya: jam share, judul, P&L, dan 2 kolom info bawah.
+        //  Semua koordinat memakai ruang acuan 968 x 1326 (ukuran gambar contoh).
+        //  Ukuran font dikalibrasi otomatis dari lebar teks di gambar contoh,
+        //  jadi kalau mau geser/perbesar cukup ubah angka di PL dan PREF di bawah.
+        // ══════════════════════════════════════════════════════════
+        const PORTRAIT_REF_W = 968;
+        const PORTRAIT_BG = {
+            profit: ['imgprofit-bg-potrait-1.png', 'imgprofit-bg-potrait-2.png', 'imgprofit-bg-potrait-3.png'],
+            loss:   ['imgloss-bg-potrait-1.png',   'imgloss-bg-potrait-2.png',   'imgloss-bg-potrait-3.png']
+        };
+        const PC = { green: '#2EBD85', red: '#F6465D', white: '#FFFFFF', soft: '#EAECEF', gray: '#848E9C', sep: '#474D57' };
+        const PCARD_FONT = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+        // Posisi (titik tengah vertikal tiap baris, atau baseline untuk angka P&L)
+        const PL = {
+            padX: 47,       // margin kiri
+            tsX: 142,       // x jam share (sejajar dengan nama Romini)
+            tsY: 130,       // jam share
+            titleY: 487,    // pair / judul
+            metaY: 537,     // baris Long | 20x
+            pnlBase: 668,   // baseline angka P&L + USDT
+            col2X: 503,     // x kolom kanan (Closed / Setara IDR)
+            labelY: 749,    // label Opened / Closed
+            valueY: 793,    // nilai Opened / Closed
+            maxW: 874       // lebar maksimum teks
+        };
+        // Teks & lebar di gambar contoh -> dipakai buat ngitung ukuran font
+        const PREF = {
+            ts:    { t: '2026-09-29 12:29:08', w: 271, wt: 500 },
+            title: { t: 'XAUUSDT Perpetual',   w: 385, wt: 700 },
+            meta:  { t: 'Long',                w: 60,  wt: 500 },
+            pnl:   { t: '0,01',                w: 144, wt: 700 },
+            unit:  { t: 'USDT',                w: 105, wt: 700 },
+            label: { t: 'Entry Price',         w: 130, wt: 400 },
+            value: { t: '4.136,00',            w: 134, wt: 700 }
+        };
+
+        let portraitFontsPromise = null;
+        function ensurePortraitFonts() {
+            if (portraitFontsPromise) return portraitFontsPromise;
+            if (!document.fonts || !document.fonts.load) {
+                portraitFontsPromise = Promise.resolve();
+                return portraitFontsPromise;
+            }
+            portraitFontsPromise = Promise.all(
+                [400, 500, 600, 700].map(w => document.fonts.load(`${w} 40px "Plus Jakarta Sans"`))
+            ).catch(() => {});
+            return portraitFontsPromise;
+        }
+
+        function pcFont(wt, size) { return `${wt} ${size}px ${PCARD_FONT}`; }
+
+        function pcSize(ctx, ref) {
+            ctx.font = pcFont(ref.wt, 100);
+            const w = ctx.measureText(ref.t).width || 1;
+            return 100 * ref.w / w;
+        }
+
+        // Gambar teks dengan titik tengah tinggi huruf besar di centerY. Mengembalikan lebar teks.
+        function pcDraw(ctx, text, x, centerY, wt, size, color, maxW) {
+            let sz = size;
+            ctx.font = pcFont(wt, sz);
+            if (maxW) {
+                const w0 = ctx.measureText(text).width;
+                if (w0 > maxW) { sz = sz * maxW / w0; ctx.font = pcFont(wt, sz); }
+            }
+            const asc = ctx.measureText('H').actualBoundingBoxAscent || sz * 0.72;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, centerY + asc / 2);
+            return ctx.measureText(text).width;
+        }
+
+        function fmtStamp(d) {
+            return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+        }
+
+        // Angka USDT di kartu: koma = ribuan, titik = desimal -> +1,000.18 / -0.01
+        function fmtNumUS(v) {
+            const t = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
+            return (v >= 0 ? '+' : '-') + t;
+        }
+        // Angka Rupiah di kartu: titik = ribuan, tanpa desimal -> Rp 1.250.000
+        function formatRupiahCard(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        // Tanggal apa pun dari sheet -> dd/mm/yyyy
+        function formatDateDMY(v) {
+            if (!v) return '-';
+            const s = String(v).trim();
+            let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return `${pad2(m[1])}/${pad2(m[2])}/${m[3]}`;
+            m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+            const d = new Date(s);
+            if (!isNaN(d.getTime())) return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+            return s;
+        }
+
+        function getTradeCardData(item) {
+            const pnl = parseFloat(item.pnl) || 0;
+            return {
+                isProfit: pnl >= 0,
+                pnl,
+                pair: item.pair || '-',
+                side: getTradeSide(item),
+                opened: formatDateDMY(item.opened),
+                closed: formatDateDMY(item.closed)
+            };
+        }
+
+        function getTotalCardData() {
+            const res = cachedGlobalResponse;
+            const gross = parseFloat(res.totalPnl) || 0;
+            const total = isNetPnlView ? gross * 0.9 : gross;
+            return {
+                isProfit: total >= 0,
+                pnl: total,
+                isNet: isNetPnlView,
+                count: res.totalTrades || 0,
+                winRate: res.winRate || 0,
+                avgDaily: lastQuickStats.daily || 0,
+                idr: formatRupiahCard(total * currentKursIdr)
+            };
+        }
+
+        async function buildPortraitCanvas(kind, variant, d) {
+            await ensurePortraitFonts();
+            const bgImg = await loadCardBgImage(PORTRAIT_BG[d.isProfit ? 'profit' : 'loss'][variant - 1]);
+
+            const W = bgImg.naturalWidth, H = bgImg.naturalHeight;
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+            ctx.drawImage(bgImg, 0, 0, W, H);
+
+            const s = W / PORTRAIT_REF_W;
+            ctx.scale(s, s);
+
+            const szTs = pcSize(ctx, PREF.ts);
+            const szTitle = pcSize(ctx, PREF.title);
+            const szMeta = pcSize(ctx, PREF.meta);
+            const szPnl = pcSize(ctx, PREF.pnl);
+            const szUnit = pcSize(ctx, PREF.unit);
+            const szLabel = pcSize(ctx, PREF.label);
+            const szValue = pcSize(ctx, PREF.value);
+
+            const accent = d.isProfit ? PC.green : PC.red;
+
+            // Jam share (di bawah nama Romini) - lengkap sampai detik
+            pcDraw(ctx, fmtStamp(new Date()), PL.tsX, PL.tsY, 500, szTs, PC.white);
+
+            let label1, value1, value1Color, label2, value2, value2Color;
+
+            if (kind === 'trade') {
+                pcDraw(ctx, `${d.pair} Perpetual`, PL.padX, PL.titleY, 700, szTitle, PC.white, PL.maxW);
+
+                const sideColor = d.side === 'Short' ? PC.red : PC.green;
+                const wSide = pcDraw(ctx, d.side, PL.padX, PL.metaY, 500, szMeta, sideColor);
+                const sepX = PL.padX + wSide + 20;
+                ctx.fillStyle = PC.sep;
+                ctx.fillRect(sepX - 1, PL.metaY - 12, 2, 24);
+                pcDraw(ctx, '20x', sepX + 21, PL.metaY, 500, szMeta, PC.gray);
+
+                label1 = 'Opened'; value1 = d.opened; value1Color = PC.white;
+                label2 = 'Closed'; value2 = d.closed; value2Color = PC.white;
+            } else if (kind === 'daily') {
+                pcDraw(ctx, `Rekap ${d.dateDMY}`, PL.padX, PL.titleY, 700, szTitle, PC.white, PL.maxW);
+
+                const wCount = pcDraw(ctx, `${d.count} Trades`, PL.padX, PL.metaY, 500, szMeta, PC.soft);
+                const sepX = PL.padX + wCount + 20;
+                ctx.fillStyle = PC.sep;
+                ctx.fillRect(sepX - 1, PL.metaY - 12, 2, 24);
+                pcDraw(ctx, `Win rate ${d.winRate}%`, sepX + 21, PL.metaY, 500, szMeta, PC.gray);
+
+                label1 = 'Setara IDR'; value1 = d.idr; value1Color = PC.white;
+                label2 = 'Trade terbaik'; value2 = fmtNumUS(d.best); value2Color = d.best >= 0 ? PC.green : PC.red;
+            } else {
+                pcDraw(ctx, d.isNet ? 'Total Net P&L' : 'Total P&L', PL.padX, PL.titleY, 700, szTitle, PC.white, PL.maxW);
+
+                const wCount = pcDraw(ctx, `${d.count} Trades`, PL.padX, PL.metaY, 500, szMeta, PC.soft);
+                const sepX = PL.padX + wCount + 20;
+                ctx.fillStyle = PC.sep;
+                ctx.fillRect(sepX - 1, PL.metaY - 12, 2, 24);
+                pcDraw(ctx, `Win rate ${d.winRate}%`, sepX + 21, PL.metaY, 500, szMeta, PC.gray);
+
+                label1 = 'Setara IDR'; value1 = d.idr; value1Color = PC.white;
+                label2 = 'Avg Harian'; value2 = fmtNumUS(d.avgDaily); value2Color = d.avgDaily >= 0 ? PC.green : PC.red;
+            }
+
+            // Angka P&L besar + USDT, sejajar di baseline yang sama
+            const numStr = fmtNumUS(d.pnl);
+            const gap = 31;
+            ctx.font = pcFont(700, szPnl);
+            const wNum0 = ctx.measureText(numStr).width;
+            ctx.font = pcFont(700, szUnit);
+            const wUnit0 = ctx.measureText('USDT').width;
+            const k = Math.min(1, PL.maxW / (wNum0 + gap + wUnit0));
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = accent;
+            ctx.font = pcFont(700, szPnl * k);
+            ctx.fillText(numStr, PL.padX, PL.pnlBase);
+            ctx.fillStyle = PC.white;
+            ctx.font = pcFont(700, szUnit * k);
+            ctx.fillText('USDT', PL.padX + (wNum0 + gap) * k, PL.pnlBase);
+
+            // Dua kolom info bawah (Opened/Closed atau Avg Harian/Setara IDR)
+            pcDraw(ctx, label1, PL.padX, PL.labelY, 400, szLabel, PC.gray);
+            pcDraw(ctx, value1, PL.padX, PL.valueY, 700, szValue, value1Color, PL.col2X - PL.padX - 24);
+            pcDraw(ctx, label2, PL.col2X, PL.labelY, 400, szLabel, PC.gray);
+            pcDraw(ctx, value2, PL.col2X, PL.valueY, 700, szValue, value2Color, PL.maxW - (PL.col2X - PL.padX));
+
+            // Rekap harian: daftar trade hari itu (maks 5 baris), pair di kiri, USDT rata kanan
+            if (kind === 'daily' && d.trades && d.trades.length) {
+                const rightX = PORTRAIT_REF_W - PL.padX;
+                const maxLines = 5;
+                const many = d.trades.length > maxLines;
+                const shown = many ? d.trades.slice(0, maxLines - 1) : d.trades;
+                const lineCount = shown.length + (many ? 1 : 0);
+                // sedikit baris -> huruf & jarak dibesarkan biar tetap seimbang
+                const scale = lineCount <= 3 ? 1.12 : 1;
+                const rowH = lineCount <= 3 ? 54 : 48;
+                const firstY = 896;
+
+                ctx.fillStyle = PC.sep;
+                ctx.fillRect(PL.padX, 852, PORTRAIT_REF_W - PL.padX * 2, 1.5);
+
+                const numSize = szValue * scale;
+                const unitSize = szValue * 0.8 * scale;
+                const pairSize = szValue * 0.95 * scale;
+                ctx.font = pcFont(500, unitSize);
+                const wUnit = ctx.measureText('USDT').width;
+
+                shown.forEach((t, i) => {
+                    const cy = firstY + i * rowH;
+                    // baseline dihitung dari tinggi angka, biar pair / angka / USDT sejajar
+                    ctx.font = pcFont(700, numSize);
+                    const asc = ctx.measureText('H').actualBoundingBoxAscent || numSize * 0.72;
+                    const base = cy + asc / 2;
+                    const numStr = fmtNumUS(t.pnl);
+                    const col = t.pnl >= 0 ? PC.green : PC.red;
+
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = PC.gray;
+                    ctx.font = pcFont(500, unitSize);
+                    ctx.fillText('USDT', rightX, base);
+
+                    const numRight = rightX - wUnit - 10;
+                    ctx.fillStyle = col;
+                    ctx.font = pcFont(700, numSize);
+                    ctx.fillText(numStr, numRight, base);
+                    const wNum = ctx.measureText(numStr).width;
+
+                    const maxPairW = numRight - wNum - 28 - PL.padX;
+                    let ps = pairSize;
+                    ctx.font = pcFont(600, ps);
+                    const wPair0 = ctx.measureText(t.pair).width;
+                    if (wPair0 > maxPairW) { ps = ps * maxPairW / wPair0; ctx.font = pcFont(600, ps); }
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = PC.white;
+                    ctx.fillText(t.pair, PL.padX, base);
+                });
+
+                if (many) {
+                    pcDraw(ctx, `+${d.trades.length - shown.length} trade lainnya`, PL.padX, firstY + shown.length * rowH, 500, szLabel * scale, PC.gray);
+                }
+            }
+
+            return canvas;
+        }
+
+        // Isi slide 1-3 (portrait) di preview. Kalau gambar belum ada, tampil pesan kecil.
+        async function renderPortraitSlides(prefix, kind, data) {
+            const token = ++portraitToken[prefix];
+            const slides = [1, 2, 3].map(v => document.getElementById(`${prefix}Slide${v}`));
+            slides.forEach(el => { if (el) el.innerHTML = '<span class="slide-msg">Memuat…</span>'; });
+
+            await Promise.all([1, 2, 3].map(async (v, i) => {
+                try {
+                    const canvas = await buildPortraitCanvas(kind, v, data);
+                    if (token !== portraitToken[prefix]) return;
+                    slides[i].innerHTML = '';
+                    slides[i].appendChild(canvas);
+                } catch (err) {
+                    console.log(err);
+                    if (token !== portraitToken[prefix]) return;
+                    const name = PORTRAIT_BG[data.isProfit ? 'profit' : 'loss'][i];
+                    slides[i].innerHTML = `<span class="slide-msg">Gambar ${name} belum ketemu (taruh satu folder sama index.html)</span>`;
+                }
+            }));
+        }
+
+        // ══════════════════════════════════════════════════════════
+        //  SHARE REKAP HARIAN (tombol share di tiap baris Rekap Harian)
+        //  Slider sama kayak kartu lain: portrait 1-3, landscape paling belakang.
+        // ══════════════════════════════════════════════════════════
+        let dailyShareDate = null;
+
+        function getDailyCardData(date) {
+            const trades = (cachedGlobalResponse.history || []).filter(t => t.closed === date);
+            if (trades.length === 0) return null;
+            let total = 0, wins = 0, best = -Infinity;
+            trades.forEach(t => {
+                const p = parseFloat(t.pnl) || 0;
+                total += p;
+                if (p > 0) wins++;
+                if (p > best) best = p;
+            });
+            const dObj = parseClosedDate(date);
+            const dateLong = dObj
+                ? dObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                : date;
+            return {
+                isProfit: total >= 0,
+                pnl: total,
+                count: trades.length,
+                winRate: Math.round((wins / trades.length) * 100),
+                best,
+                trades: trades.map(t => ({ pair: String(t.pair || '').trim(), pnl: parseFloat(t.pnl) || 0 })),
+                dateDMY: formatDateDMY(date),
+                dateLong,
+                idr: formatRupiahCard(total * currentKursIdr)
+            };
+        }
+
+        function openDailyShareModal(date) {
+            const d = getDailyCardData(date);
+            if (!d) return;
+            dailyShareDate = date;
+
+            document.getElementById('dailyCardPreview').style.backgroundImage = `url('${d.isProfit ? CARD_BG_PROFIT : CARD_BG_LOSS}')`;
+            document.getElementById('dailyCardDate').textContent = d.dateLong;
+
+            const totalEl = document.getElementById('dailyCardTotal');
+            totalEl.textContent = `${fmtNumUS(d.pnl)} USDT`;
+            totalEl.className = `cardpv-total ${d.isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            document.getElementById('dailyCardTotalIdr').textContent = d.idr;
+            document.getElementById('dailyCardCount').textContent = d.count;
+            document.getElementById('dailyCardWinRate').textContent = `${d.winRate}%`;
+            const bestEl = document.getElementById('dailyCardBest');
+            bestEl.textContent = fmtNumUS(d.best);
+            bestEl.style.color = d.best >= 0 ? '#34d399' : '#fb7185';
+
+            resetCarousel('daily');
+            renderPortraitSlides('daily', 'daily', d);
+
+            document.getElementById('dailyShareModal').classList.remove('hidden');
+            previewModalOpened();
+        }
+
+        function closeDailyShareModal() {
+            document.getElementById('dailyShareModal').classList.add('hidden');
+            dailyShareDate = null;
+            previewModalClosed();
+        }
+
+        // Landscape rekap harian: gaya sama persis dengan kartu Total P&L
+        async function buildDailyShareCanvas(d) {
+            const totalText = `${fmtNumUS(d.pnl)} USDT`;
+            const bgImg = await loadCardBgImage(d.isProfit ? CARD_BG_PROFIT : CARD_BG_LOSS);
+
+            const W = 1200;
+            const H = Math.round(W * (bgImg.naturalHeight / bgImg.naturalWidth));
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+            ctx.drawImage(bgImg, 0, 0, W, H);
+
+            const PAD = 56;
+            const cx = PAD;
+            let cy = PAD;
+            const colW = W * 0.46;
+
+            const logoSize = 76;
+            drawRoundRectPath(ctx, cx, cy, logoSize, logoSize, 18);
+            ctx.fillStyle = 'rgba(217,164,65,0.18)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(217,164,65,0.45)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            drawLogoIcon(ctx, cx, cy, logoSize, '#ffffff');
+
+            const textX = cx + logoSize + 18;
+            const titleFont = 33, dateFont = 23;
+            const titleLineH = titleFont * 1.15, dateLineH = dateFont * 1.15, lineGap = 8;
+            const headerTextH = titleLineH + lineGap + dateLineH;
+            const headerTextTop = cy + (logoSize - headerTextH) / 2;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `700 ${titleFont}px ${CARD_FONT}`;
+            ctx.fillText('Trading Log', textX, headerTextTop);
+            ctx.fillStyle = '#c9cdd6';
+            ctx.font = `400 ${dateFont}px ${CARD_FONT}`;
+            ctx.fillText(d.dateLong, textX, headerTextTop + titleLineH + lineGap);
+
+            cy += logoSize + 28;
+
+            ctx.fillStyle = '#c9cdd6';
+            ctx.font = `700 24px ${CARD_FONT}`;
+            ctx.fillText('REKAP HARIAN', cx, cy);
+            cy += 24 + 10;
+
+            ctx.fillStyle = d.isProfit ? '#34d399' : '#fb7185';
+            ctx.font = `700 88px ${CARD_FONT}`;
+            ctx.fillText(totalText, cx, cy);
+            cy += 88 + 16;
+
+            ctx.fillStyle = '#dfe2e8';
+            ctx.font = `400 33px ${CARD_FONT}`;
+            ctx.fillText(d.idr, cx, cy);
+
+            const stats = [
+                { label: 'TRADES', value: String(d.count) },
+                { label: 'WIN RATE', value: `${d.winRate}%` },
+                { label: 'TERBAIK', value: fmtNumUS(d.best), color: d.best >= 0 ? '#34d399' : '#fb7185' }
+            ];
+            const boxGap = 10;
+            const boxW = (colW - boxGap * 2) / 3;
+            const boxH = 124;
+            const statRowY = H - PAD - boxH;
+            stats.forEach((st, i) => {
+                drawStatBox(ctx, cx + i * (boxW + boxGap), statRowY, boxW, boxH, st.label, st.value, st.color);
+            });
+
+            return canvas;
+        }
+
+        async function downloadDailyShare(saveOnly) {
+            if (!dailyShareDate) return;
+            try {
+                const d = getDailyCardData(dailyShareDate);
+                if (!d) return;
+                const idx = slideState.daily;
+                const dateTag = String(dailyShareDate).replace(/\//g, '-');
+                const ts = fileStamp(new Date());
+                let canvas, fname;
+                if (idx === LANDSCAPE_SLIDE) {
+                    canvas = await buildDailyShareCanvas(d);
+                    fname = `TradingLog_Rekap_${dateTag}_${ts}.png`;
+                } else {
+                    canvas = await buildPortraitCanvas('daily', idx + 1, d);
+                    fname = `TradingLog_Rekap_${dateTag}_P${idx + 1}_${ts}.png`;
+                }
+                if (saveOnly) downloadCanvasCard(canvas, fname); else shareOrDownloadCanvas(canvas, fname);
+            } catch (err) {
+                console.log(err);
+                showToast('Gagal muat gambar background', 'error');
+            }
         }
 
         function renderEquityCurve(history) {
@@ -1866,6 +3074,60 @@
                 tooltip.classList.add('hide');
             }, 2000);
         }
+
+        // ══════════════════════════════
+        //  TUTUP POPUP: klik di luar kartu, tombol Kembali (HP), Esc (PC)
+        //  Tombol Kembali: saat preview kartu dibuka kita "titip" 1 entri riwayat,
+        //  jadi Kembali menutup popup dulu (bukan keluar dari aplikasi).
+        // ══════════════════════════════
+        let previewHistoryPushed = false;
+        let previewIgnoreNextPop = false;
+        let previewPendingPush = false;
+
+        function previewPushState() {
+            try {
+                history.pushState({ previewModal: true }, '');
+                previewHistoryPushed = true;
+            } catch (err) { console.log(err); }
+        }
+
+        function previewModalOpened() {
+            if (previewHistoryPushed) return;
+            if (previewIgnoreNextPop) { previewPendingPush = true; return; }
+            previewPushState();
+        }
+
+        function previewModalClosed() {
+            if (!previewHistoryPushed) { previewPendingPush = false; return; }
+            previewHistoryPushed = false;
+            previewIgnoreNextPop = true;
+            history.back();
+        }
+
+        window.addEventListener('popstate', () => {
+            if (previewIgnoreNextPop) {
+                previewIgnoreNextPop = false;
+                if (previewPendingPush) { previewPendingPush = false; previewPushState(); }
+                return;
+            }
+            if (previewHistoryPushed) {
+                previewHistoryPushed = false;   // entri sudah dibuang oleh tombol Kembali
+                closeResultCardModal();
+                closeTradeShareModal();
+                closeDailyShareModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const isOpen = (id) => !document.getElementById(id).classList.contains('hidden');
+            if (isOpen('resultCardModal')) closeResultCardModal();
+            else if (isOpen('tradeShareModal')) closeTradeShareModal();
+            else if (isOpen('dailyShareModal')) closeDailyShareModal();
+            else if (isOpen('deleteModal')) closeDeleteModal();
+            else if (isOpen('editModal')) closeEditModal();
+            else if (isOpen('actionModal')) closeActionModal();
+        });
 
         function handleError(err) {
             console.error(err);
