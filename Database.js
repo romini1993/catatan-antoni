@@ -4,7 +4,7 @@
 //  Isi dengan link Web App Google Apps Script (berakhiran /exec).
 // ═══════════════════════════════════════════════════════════
 window.APP_CONFIG = {
-    API_URL: "https://script.google.com/macros/s/AKfycbxXyZd1pekC0tZRdwuY-aQzJb7veINYpp_sheoxMemO9sSrduj26QRhR4kHokR5iqJq/exec"
+    API_URL: "https://script.google.com/macros/s/AKfycbx-4oLgbBltmYD4jnx7UzMsBGMoSRSXL00qJc4VeX7uhP0N0mZQwCvQsit46gWQUOzC/exec"
 };
 
 // Simpan link sheet lain di sini biar gampang tinggal copy-paste ke API_URL di atas:
