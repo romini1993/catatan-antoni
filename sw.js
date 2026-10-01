@@ -1,6 +1,6 @@
 // Naikkan versi ini SETIAP kali kamu deploy perubahan (v2, v3, v4, ...)
 // Ini yang memaksa browser membuang cache lama dan ambil aset baru.
-const CACHE_VERSION = 'trade-app-v2';
+const CACHE_VERSION = 'trade-app-v2124562';
 const STATIC_ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
